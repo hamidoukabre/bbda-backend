@@ -1,0 +1,11 @@
+{
+  "SR": 8000 ,
+  "HOP SIZE": 4000,
+  "input dirs": ["data/train","data/val"],
+  "batch size": 16,
+  "weights": "data/pretrained_models/bbda_model.pt",
+  "attention": false,
+  "output dir": "data/fingerprints"
+}
+
+

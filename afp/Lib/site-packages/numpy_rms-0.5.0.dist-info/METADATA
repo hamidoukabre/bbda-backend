@@ -1,0 +1,94 @@
+Metadata-Version: 2.2
+Name: numpy-rms
+Version: 0.5.0
+Summary: A fast python library for calculating the RMS of a NumPy array
+Author: Iver Jordal
+License: MIT License
+        
+        Copyright (c) 2024 Nomono
+        
+        Permission is hereby granted, free of charge, to any person obtaining a copy
+        of this software and associated documentation files (the "Software"), to deal
+        in the Software without restriction, including without limitation the rights
+        to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+        copies of the Software, and to permit persons to whom the Software is
+        furnished to do so, subject to the following conditions:
+        
+        The above copyright notice and this permission notice shall be included in all
+        copies or substantial portions of the Software.
+        
+        THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+        IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+        FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+        AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+        LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+        OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+        SOFTWARE.
+        
+Project-URL: Homepage, https://github.com/nomonosound/numpy-rms
+Classifier: Development Status :: 3 - Alpha
+Classifier: Intended Audience :: Developers
+Classifier: Intended Audience :: Science/Research
+Classifier: Topic :: Software Development :: Libraries
+Classifier: Topic :: Multimedia :: Sound/Audio
+Classifier: Topic :: Scientific/Engineering
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Programming Language :: Python :: 3.9
+Classifier: Programming Language :: Python :: 3.10
+Classifier: Programming Language :: Python :: 3.11
+Classifier: Programming Language :: Python :: 3.12
+Description-Content-Type: text/markdown
+License-File: LICENSE
+Requires-Dist: cffi>=1.0.0
+Requires-Dist: numpy<3,>=2
+
+# numpy-rms: a fast function for calculating a series of Root Mean Square (RMS) values
+
+* Written in C and takes advantage of AVX (on x86-64) or NEON (on ARM) for speed
+* The fast implementation is tailored for C-contiguous 1-dimensional and 2-dimensional float32 arrays
+
+# Installation
+
+[![PyPI version](https://img.shields.io/pypi/v/numpy-rms.svg?style=flat)](https://pypi.org/project/numpy-rms/)
+![python 3.8, 3.9, 3.10, 3.11, 3.12](https://img.shields.io/badge/Python-3.8%20|%203.9%20|%203.10%20|%203.11|%203.12-blue)
+![os: Linux, macOS, Windows](https://img.shields.io/badge/OS-Linux%20%28arm%20%26%20x86%29%20|%20macOS%20%28arm%20%26%20x86%29%20|%20Windows%20%28x86%29-blue)
+
+```
+$ pip install numpy-rms
+```
+
+# Usage
+
+```py
+import numpy_rms
+import numpy as np
+
+arr = np.arange(40, dtype=np.float32)
+rms_series = numpy_rms.rms(arr, window_size=10)
+print(rms_series.shape)  # (4,)
+```
+
+# Changelog
+
+## [0.5.0] - 2025-03-14
+
+### Changed
+
+* Bump numpy to >=2,<3
+
+### Removed
+
+* Remove support for Python 3.8
+* Remove support for PyPy on Windows
+
+For the complete changelog, go to [CHANGELOG.md](CHANGELOG.md)
+
+# Development
+
+* Install dev/build/test dependencies as denoted in pyproject.toml
+* `CC=clang pip install -e .`
+* `pytest`
+
+# Acknowledgements
+
+This library is maintained/backed by [Nomono](https://nomono.co/), a Norwegian audio AI startup.

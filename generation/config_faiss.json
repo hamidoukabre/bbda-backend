@@ -1,0 +1,10 @@
+{
+  "input_dir": "data/fingerprints",
+  "output_dir": "data/faiss_indexes",
+  "name": "bbda_index",
+  "index": "IVF20,PQ64",
+  "d": 128
+}
+
+
+

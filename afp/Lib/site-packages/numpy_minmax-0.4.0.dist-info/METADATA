@@ -1,0 +1,101 @@
+Metadata-Version: 2.2
+Name: numpy-minmax
+Version: 0.4.0
+Summary: A fast python library for finding both min and max value in a NumPy array
+License: MIT License
+        
+        Copyright (c) 2024 Nomono
+        
+        Permission is hereby granted, free of charge, to any person obtaining a copy
+        of this software and associated documentation files (the "Software"), to deal
+        in the Software without restriction, including without limitation the rights
+        to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+        copies of the Software, and to permit persons to whom the Software is
+        furnished to do so, subject to the following conditions:
+        
+        The above copyright notice and this permission notice shall be included in all
+        copies or substantial portions of the Software.
+        
+        THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+        IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+        FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+        AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+        LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+        OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+        SOFTWARE.
+        
+Project-URL: Homepage, https://github.com/nomonosound/numpy-minmax
+Classifier: Development Status :: 3 - Alpha
+Classifier: Intended Audience :: Developers
+Classifier: Intended Audience :: Science/Research
+Classifier: Topic :: Software Development :: Libraries
+Classifier: Topic :: Multimedia :: Sound/Audio
+Classifier: Topic :: Scientific/Engineering
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Programming Language :: Python :: 3.9
+Classifier: Programming Language :: Python :: 3.10
+Classifier: Programming Language :: Python :: 3.11
+Classifier: Programming Language :: Python :: 3.12
+Description-Content-Type: text/markdown
+License-File: LICENSE
+Requires-Dist: cffi>=1.0.0
+Requires-Dist: numpy<3,>=2
+Provides-Extra: test
+Requires-Dist: pytest; extra == "test"
+
+# numpy-minmax: a fast function for finding the minimum and maximum value in a NumPy array
+
+NumPy lacked an optimized minmax function, so we wrote our own. At Nomono, we use it for audio processing, but it can be applied any kind of float32 ndarray.
+
+* Written in C and takes advantage of AVX/AVX512 for speed
+* Roughly **2.3x speedup** compared to the numpy amin+amax equivalent (tested on Intel CPU with numpy 1.24-1.26)
+* The fast implementation is tailored for float32 arrays that are C-contiguous, F-contiguous or 1D strided. Strided arrays with ndim >= 2 get processed with numpy.amin and numpy.amax, so no perf gain there. There is also a fast implementation for contiguous int16 arrays.
+
+# Installation
+
+[![PyPI version](https://img.shields.io/pypi/v/numpy-minmax.svg?style=flat)](https://pypi.org/project/numpy-minmax/)
+![python 3.8, 3.9, 3.10, 3.11, 3.12](https://img.shields.io/badge/Python-3.8%20|%203.9%20|%203.10%20|%203.11|%203.12-blue)
+![os: Linux, macOS, Windows](https://img.shields.io/badge/OS-Linux%20%28arm%20%26%20x86%29%20|%20macOS%20%28arm%29%20|%20Windows%20%28x86%29-blue)
+
+```
+$ pip install numpy-minmax
+```
+
+# Usage
+
+```py
+import numpy_minmax
+import numpy as np
+
+arr = np.arange(1337, dtype=np.float32)
+min_val, max_val = numpy_minmax.minmax(arr)  # 0.0, 1336.0
+```
+
+# Changelog
+
+## [0.4.0] - 2025-03-17
+
+### Changes
+
+* Target numpy 2.x instead of numpy 1.x. If you still depend on numpy 1.x, you need an older version of numpy-minmax.
+* Process some types of arrays with a negative stride in a scalar way instead of vectorized for improved compatibility
+
+### Removed
+
+* Remove support for Python 3.8
+
+For the complete changelog, go to [CHANGELOG.md](CHANGELOG.md)
+
+# Development
+
+* Install dev/build/test dependencies as denoted in pyproject.toml
+* `CC=clang pip install -e .`
+* `pytest`
+
+# Running benchmarks
+* Install diplib `pip install diplib`
+* `python scripts/perf_benchmark.py`
+
+# Acknowledgements
+
+This library is maintained/backed by [Nomono](https://nomono.co/), a Norwegian audio AI startup.

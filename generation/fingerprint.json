@@ -1,0 +1,10 @@
+
+{
+    "SR": 8000,
+    "HOP SIZE": 4000,
+    "batch size": 8,
+    "weights": "../data/pretrained_models/bbda_model.pt",
+    "attention": false,
+    "input dirs": ["dataset/audio_samples"],
+    "output dir": "data/fingerprints"
+}

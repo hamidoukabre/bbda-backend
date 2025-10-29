@@ -1,0 +1,64 @@
+{
+  "duration": 5,
+  "json": "data/faiss_indexes/bbda_index.json",
+  "index": "data/faiss_indexes/bbda_index.index",
+  "nprobes": 40,
+  "neighbors": 5,
+  "search algorithm": "sequence search",
+  "attention": false,
+  "device": "cpu",
+  "weights": "data/pretrained_models/bbda_model.pt",
+  "SR": 8000,
+  "Hop size": 4000,
+  "FMB": 8000,
+  
+  "_comment_thresholds": "Seuils de base adaptés à votre système",
+  "min_score_threshold": 2.0,
+  "min_confidence_threshold": 0.10,
+  
+  "_comment_detection": "Paramètres de détection musicale plus sensibles",
+  "rms_threshold": 0.0003,
+  "spectral_threshold": 300,
+  
+  "_comment_validation": "Paramètres de validation optimisés",
+  "consecutive_detections": 3,
+  "rapid_confirmations": 2,
+  "high_confidence_threshold": 6.0,
+  "transition_timeout": 30,
+  
+  "_comment_adaptive": "Adaptation automatique désactivée initialement",
+  "enable_adaptive_thresholds": false,
+  "noise_adaptation_factor": 1.2,
+  "snr_adaptation_factor": 1.1,
+  
+  "_comment_monitoring": "Mode surveillance broadcast",
+  "broadcast_mode": true,
+  "detect_short_content": true,
+  "min_short_content_duration": 5,
+  "jingle_detection_mode": false,
+  
+  "_comment_performance": "Configuration conservative",
+  "batch_processing": false,
+  "memory_optimization": true,
+  "parallel_processing": false,
+  
+  "_comment_logging": "Logs simplifiés",
+  "log_detections": true,
+  "log_performance": false,
+  "log_transitions": false,
+  "export_statistics": false,
+  
+  "_comment_quality": "Analyse de qualité basique",
+  "quality_analysis": true,
+  "snr_threshold": 10.0,
+  "spectral_analysis": true,
+  "periodicity_detection": false,
+
+  "session_timeout": 15,
+  "min_extract_duration": 5,
+  "max_gap_tolerance": 3,
+  "tracking_enabled": true,
+  "export_tracking_logs": true
+}
+
+
