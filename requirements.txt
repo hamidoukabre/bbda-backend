@@ -70,7 +70,6 @@ plotly
 pooch
 protobuf
 pyarrow
-PyAudio
 pycparser
 pydantic
 pydantic_core
