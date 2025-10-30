@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: bbda-backend
+    env: python
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "python main_fastapi.py"
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.4

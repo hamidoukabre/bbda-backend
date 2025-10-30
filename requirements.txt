@@ -2,7 +2,7 @@ aiofiles==24.1.0
 altair==5.5.0
 annotated-types==0.7.0
 anyio==4.9.0
-# api==0.0.7
+api==0.0.7
 attrs==25.3.0
 audiomentations==0.41.0
 audioread==3.0.1
