@@ -92,16 +92,6 @@ class DetectionEvent(BaseModel):
     score: float
     session_id: str
 
-# class RadioStatus(BaseModel):
-#     name: str
-#     is_active: bool
-#     is_connected: bool
-#     current_track: Optional[str]
-#     total_detections: int
-#     last_detection_time: Optional[str]
-#     reconnect_count: int
-#     error_count: int
-
 class RadioStatus(BaseModel):
     name: str
     is_active: bool
