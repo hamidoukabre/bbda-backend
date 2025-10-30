@@ -1198,10 +1198,12 @@
 
 
 
+
 # -*- coding: utf-8 -*-
 """
 FastAPI Professional Audio Monitoring API
 Style BMAT - Gestion complète des sessions et rapports
+Version compatible Render - Sans dépendances audio système
 """
 
 import os
@@ -1224,7 +1226,7 @@ import pandas as pd
 import numpy as np
 import torch
 import faiss
-import sounddevice as sd  # REMPLACEMENT PyAudio
+# REMOVED: import sounddevice as sd - Pas compatible Render
 import librosa
 from fastapi import FastAPI, File, UploadFile, HTTPException, WebSocket, WebSocketDisconnect, Query
 from fastapi.middleware.cors import CORSMiddleware
@@ -1234,8 +1236,6 @@ from io import StringIO
 from fastapi.responses import StreamingResponse
 
 logger = logging.getLogger(__name__)
-
-
 
 # ----------------- LOGGING -----------------
 logging.basicConfig(
@@ -1377,7 +1377,7 @@ class MonitoringManager:
         self.index: Optional[faiss.Index] = None
         self.json_correspondence: Optional[Dict] = None
         self.sorted_arr: Optional[np.ndarray] = None
-        self.stream: Optional[sd.InputStream] = None  # REMPLACEMENT PyAudio Stream
+        self.stream = None  # Pas de stream audio système sur Render
         self.device: str = 'cpu'
 
         # Session management
@@ -1398,38 +1398,14 @@ class MonitoringManager:
         self.loop = asyncio.new_event_loop()
         threading.Thread(target=self.loop.run_forever, daemon=True).start()
 
-                # Nouveaux attributs pour streaming
+        # Nouveaux attributs pour streaming
         self.audio_buffer: list = []
         self.last_analysis_time: float = 0
         self.min_buffer_duration: float = 5.0  # secondes
 
-
-                # ✅ AJOUT SIMPLE: Pour enregistrement audio
-        # self.audio_save_dir = Path("recorded_audio")
-        # self.audio_save_dir.mkdir(exist_ok=True)
-        # self.audio_counter = 0
-
-
-    # def _save_audio_for_debug(self, audio_data: np.ndarray, sample_rate: int):
-    #     """Sauvegarde simple de l'audio pour debug"""
-    #     try:
-    #         timestamp = datetime.datetime.now().strftime("%H%M%S")
-    #         filename = f"audio_{timestamp}.wav"
-    #         filepath = self.audio_save_dir / filename
-            
-    #         # Sauvegarder avec soundfile
-    #         import soundfile as sf
-    #         sf.write(filepath, audio_data, sample_rate)
-            
-    #         print(f"🔊 Audio enregistré: {filename}")
-            
-    #     except Exception as e:
-    #         print(f"❌ Erreur enregistrement: {e}")    
-
-
     def analyze_audio_chunk(self, audio_data: np.ndarray, sample_rate: int, chunk_index: int = 0) -> Optional[dict]:
         """
-        ✅ Analyse un chunk audio de 5 secondes comme avec PyAudio
+        ✅ Analyse un chunk audio de 5 secondes
         """
         try:
             if self.model is None or self.index is None:
@@ -1503,7 +1479,7 @@ class MonitoringManager:
             logger.info(f"🎯 Résultat: {winner} | Score: {score:.2f} | Confiance: {confidence:.2f}")
             
             # ✅ SEUIL ADAPTATIF
-            min_confidence = 0.4 if (self.current_track and winner == self.current_track) else 0.1
+            min_confidence = 0.1 if (self.current_track and winner == self.current_track) else 0.1
             
             if confidence >= min_confidence:
                 logger.info(f"✅ DÉTECTION VALIDÉE: {winner}")
@@ -1521,8 +1497,6 @@ class MonitoringManager:
         except Exception as e:
             logger.error(f"❌ Erreur analyse chunk: {e}", exc_info=True)
             return None
-
-
 
     def process_stream_detection(self, result: dict) -> Optional[DetectionEvent]:
         """
@@ -1670,18 +1644,10 @@ class MonitoringManager:
             raise
 
     def initialize_audio(self):
+        """Initialisation audio simplifiée pour Render - pas de capture microphone"""
         try:
-            F, FMB = self.config['SR'], self.config['FMB']
-            
-            # REMPLACEMENT PyAudio par SoundDevice
-            self.stream = sd.InputStream(
-                samplerate=F,
-                channels=1,
-                dtype=np.float32,
-                blocksize=FMB,
-                callback=self._audio_callback if hasattr(self, '_audio_callback') else None
-            )
-            logger.info(f"Stream audio SoundDevice initialisé: {F}Hz")
+            logger.info("🔇 Mode Render - Pas de capture audio en direct")
+            logger.info("📡 Utilisez /analyze_stream pour analyser des fichiers audio uploadés")
         except Exception as e:
             logger.error(f"Erreur d'initialisation audio: {e}")
             raise
@@ -1696,7 +1662,7 @@ class MonitoringManager:
             self.load_configuration(config_path)
             self.initialize_model()
             self.initialize_index()
-            self.initialize_audio()
+            self.initialize_audio()  # Initialisation simplifiée
             
             # Créer nouvelle session
             session_id = str(uuid4())[:8]
@@ -1713,9 +1679,8 @@ class MonitoringManager:
             self.track_start_time = None
             self.consecutive_detections = 0
             
-            self.monitoring_thread = threading.Thread(target=self._monitoring_loop, daemon=True)
-            self.monitoring_thread.start()
             logger.info(f"Surveillance démarrée - Session: {session_id}")
+            logger.info("🔇 Mode Render: Utilisez /analyze_stream pour analyser des fichiers audio")
 
     def stop_monitoring(self):
         with self._lock:
@@ -1744,10 +1709,7 @@ class MonitoringManager:
 
     def cleanup(self):
         try:
-            if self.stream:
-                self.stream.stop()
-                self.stream.close()
-                self.stream = None
+            # Pas de stream audio à nettoyer sur Render
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
         except Exception as e:
@@ -1774,132 +1736,6 @@ class MonitoringManager:
             "total_sessions": total_sessions,
             "total_detections": total_detections
         }
-
-    # ----------------- MONITORING LOOP -----------------
-    def _monitoring_loop(self):
-        F, H, FMB = self.config['SR'], self.config['Hop size'], self.config['FMB']
-        dur, k = self.config['duration'], self.config['neighbors']
-        s_flag = 'sequence search' if self.config.get('search algorithm')=='sequence search' else 'majority vote'
-        silence_threshold = self.config.get('silence_threshold', 0.01)
-
-        logger.info("Boucle de surveillance démarrée")
-        try:
-            # Démarrer le stream SoundDevice
-            if self.stream:
-                self.stream.start()
-            
-            with torch.no_grad():
-                while not self.should_stop.is_set():
-                    try:
-                        # REMPLACEMENT: Lecture audio avec SoundDevice
-                        # Pour SoundDevice, on utilise une approche différente pour collecter les données
-                        frames_needed = int(F / FMB * dur)
-                        audio_data = np.array([], dtype=np.float32)
-                        
-                        # Collecter les données audio pendant la durée spécifiée
-                        for _ in range(frames_needed):
-                            if self.should_stop.is_set():
-                                break
-                            
-                            # Pour SoundDevice, on peut utiliser une queue ou buffer partagé
-                            # Cette implémentation est simplifiée - peut nécessiter ajustement
-                            time.sleep(FMB / F)  # Temps pour un bloc
-                            
-                            # Dans une vraie implémentation, vous utiliseriez un callback
-                            # ou un buffer circulaire pour collecter les données
-                            
-                        # Pour l'instant, on utilise une approche simplifiée
-                        # Cette partie devra être adaptée selon votre configuration
-                        aggregated_buf = np.random.random(F * dur).astype(np.float32) * 0.1  # Placeholder
-                        
-                    except Exception as e:
-                        logger.warning(f"Erreur audio: {e}")
-                        continue
-
-                    now = datetime.datetime.now()
-
-                    # Filtrage silence
-                    if np.mean(np.abs(aggregated_buf)) < silence_threshold:
-                        continue
-
-                    # Découpage et analyse
-                    J = max(1, int(np.floor((aggregated_buf.size - F) / H)) + 1)
-                    if J <= 0:
-                        continue
-
-                    xq = np.stack([
-                        extract_mel_spectrogram(aggregated_buf[j*H:j*H+F]).reshape(1,256,32)
-                        for j in range(J)
-                    ])
-
-                    out = self.model(torch.from_numpy(xq).to(self.device))
-                    D, I = self.index.search(out.cpu().numpy(), k)
-
-                    # Identification
-                    if s_flag == 'sequence search':
-                        idx, score = query_sequence_search(D, I)
-                        true_idx = search_index(idx, self.sorted_arr)
-                        winner = self.json_correspondence[str(true_idx)]
-                        offset = (idx - true_idx) * H / F
-                    else:
-                        winner, score = get_winner(self.json_correspondence, I, D, self.sorted_arr)
-                        offset = 0
-
-                    confidence = min(1.0, score / 10)
-
-                    # Gestion de la continuité des pistes
-                    if winner == self.current_track:
-                        self.consecutive_detections += 1
-                    else:
-                        # Changement de piste
-                        if self.current_track and self.consecutive_detections >= self.min_detections_for_track:
-                            # Calculer la durée de lecture
-                            duration_played = (now - self.track_start_time).total_seconds()
-                            self._finalize_track_detection(duration_played)
-                        
-                        # Nouvelle piste
-                        self.current_track = winner
-                        self.track_start_time = now
-                        self.consecutive_detections = 1
-
-                    # Créer événement de détection uniquement si confiance suffisante
-                    if confidence >= 0.1 and self.consecutive_detections >= self.min_detections_for_track:
-                        detection = DetectionEvent(
-                            id=str(uuid4())[:8],
-                            track=winner,
-                            score=float(score),
-                            confidence=float(confidence),
-                            offset=float(offset),
-                            timestamp=now.isoformat(),
-                            session_id=self.current_session.session_id,
-                            duration_played=0.0  # Sera mis à jour à la fin
-                        )
-
-                        # Vérifier si c'est une nouvelle détection unique
-                        if not self.current_session.detections or \
-                           self.current_session.detections[-1].track != winner:
-                            self.current_session.detections.append(detection)
-                            self.current_session.detection_count += 1
-
-                            # Envoi WebSocket
-                            asyncio.run_coroutine_threadsafe(
-                                self.event_queue.put({'event':'detection','data':detection.dict()}),
-                                self.loop
-                            )
-
-                    time.sleep(0.001)
-
-        except Exception as e:
-            logger.error(f"Erreur boucle monitoring: {e}", exc_info=True)
-        finally:
-            # Arrêter le stream SoundDevice
-            if self.stream:
-                self.stream.stop()
-            # Finaliser la dernière piste
-            if self.current_track and self.track_start_time:
-                duration = (datetime.datetime.now() - self.track_start_time).total_seconds()
-                self._finalize_track_detection(duration)
-            logger.info("Boucle de surveillance terminée")
 
     def _finalize_track_detection(self, duration: float):
         """Finalise une détection de piste avec sa durée totale"""
@@ -2000,7 +1836,12 @@ class MonitoringManager:
 monitoring_manager = MonitoringManager()
 
 # ----------------- FASTAPI APP -----------------
-app = FastAPI(title="Professional Audio Monitoring API", version="2.0.0")
+app = FastAPI(
+    title="Professional Audio Monitoring API", 
+    version="2.0.0",
+    description="API de surveillance audio compatible Render - Mode fichier uniquement"
+)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -2011,7 +1852,7 @@ app.add_middleware(
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    logger.info("API démarrée")
+    logger.info("API démarrée sur Render")
     yield
     if monitoring_manager.is_running:
         monitoring_manager.stop_monitoring()
@@ -2020,6 +1861,21 @@ async def lifespan(app: FastAPI):
 app.router.lifespan_context = lifespan
 
 # ----------------- ENDPOINTS -----------------
+@app.get("/")
+async def root():
+    return {
+        "message": "Audio Monitoring API - Déployé sur Render",
+        "version": "2.0.0",
+        "mode": "Fichiers uniquement (pas de capture microphone)",
+        "endpoints": {
+            "/health": "État du service",
+            "/start": "Démarrer une session",
+            "/analyze_stream": "Analyser un fichier audio",
+            "/infer": "Inférence sur fichier",
+            "/reports/sessions": "Rapports des sessions"
+        }
+    }
+
 @app.get("/health", response_model=HealthResponse)
 async def health():
     return HealthResponse(
@@ -2029,17 +1885,15 @@ async def health():
         model_loaded=monitoring_manager.model is not None
     )
 
-
-
 @app.post("/start", response_model=ApiResponse)
 async def start_monitoring(request: StartMonitoringRequest):
     """
-    Démarrer la surveillance - utilise maintenant le streaming client
+    Démarrer la surveillance - Mode Render (fichiers uniquement)
     """
     try:
         config_path = request.config_path or "config_online.json"
         
-        # Charger config et modèle SANS PyAudio
+        # Charger config et modèle
         monitoring_manager.load_configuration(config_path)
         monitoring_manager.initialize_model()
         monitoring_manager.initialize_index()
@@ -2058,38 +1912,19 @@ async def start_monitoring(request: StartMonitoringRequest):
         monitoring_manager.track_start_time = None
         monitoring_manager.consecutive_detections = 0
         
-        # ✅ FORCER la création du dossier d'enregistrement
-        # monitoring_manager.audio_save_dir.mkdir(exist_ok=True)
-        # print(f"📁 Dossier d'enregistrement créé: {monitoring_manager.audio_save_dir}")
-        
-        # logger.info(f"🎤 Surveillance CLIENT démarrée - Session: {session_id}")
-        # logger.info(f"📁 Enregistrement audio activé: {monitoring_manager.audio_save_dir}")
-        
         return ApiResponse(
             success=True,
-            message="Surveillance streaming démarrée",
+            message="Surveillance démarrée (Mode Render - fichiers uniquement)",
             data={
                 "session_id": session_id,
-                "audio_recording_enabled": True,
-                # "audio_path": str(monitoring_manager.audio_save_dir)
+                "mode": "file_analysis",
+                "note": "Utilisez /analyze_stream pour analyser des fichiers audio"
             }
         )
         
     except Exception as e:
         logger.error(f"❌ Erreur start: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
-
-
-
-
-@app.post("/monitoring/start", response_model=ApiResponse)
-async def start_monitoring(request: StartMonitoringRequest):
-    """
-    Version mise à jour qui utilise le streaming depuis Angular
-    """
-    return await start_monitoring_stream(request)
-
-
 
 @app.post("/stop", response_model=ApiResponse)
 async def stop_monitoring():
@@ -2129,8 +1964,6 @@ async def infer_audio(file: UploadFile = File(...), duration: int = 5,
     finally:
         if temp_path and os.path.exists(temp_path):
             os.unlink(temp_path)
-
-
 
 # ----------------- REPORTS ENDPOINTS -----------------
 @app.get("/reports/sessions", response_model=List[ReportSummary])
@@ -2230,7 +2063,6 @@ async def delete_session(session_id: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-
 @app.post("/analyze_stream")
 async def analyze_audio_stream(audio: UploadFile = File(...)):
     """
@@ -2249,9 +2081,6 @@ async def analyze_audio_stream(audio: UploadFile = File(...)):
         
         # Charger l'audio
         y, sr = librosa.load(temp_path, sr=None, mono=True)
-        
-        # ✅ AJOUT: Enregistrer l'audio
-        # monitoring_manager._save_audio_for_debug(y, sr)
         
         # Analyser
         result = monitoring_manager.analyze_audio_chunk(y, sr)
@@ -2291,49 +2120,6 @@ async def analyze_audio_stream(audio: UploadFile = File(...)):
         if temp_path and os.path.exists(temp_path):
             os.unlink(temp_path)
 
-@app.post("/start_stream")
-async def start_monitoring_stream(request: StartMonitoringRequest):
-    """
-    Démarrer une session de surveillance en mode streaming (sans PyAudio)
-    """
-    try:
-        config_path = request.config_path or "config_online.json"
-        
-        # Charger config et modèle SANS initialiser PyAudio
-        monitoring_manager.load_configuration(config_path)
-        monitoring_manager.initialize_model()
-        monitoring_manager.initialize_index()
-        
-        # Créer session
-        from uuid import uuid4
-        import datetime
-        
-        session_id = str(uuid4())[:8]
-        monitoring_manager.current_session = MonitoringSession(
-            session_id=session_id,
-            start_time=datetime.datetime.now().isoformat(),
-            status="running"
-        )
-        
-        monitoring_manager.is_running = True
-        monitoring_manager.start_time = time.time()
-        monitoring_manager.current_track = None
-        monitoring_manager.track_start_time = None
-        monitoring_manager.consecutive_detections = 0
-        
-        logger.info(f"Surveillance streaming démarrée - Session: {session_id}")
-        
-        return ApiResponse(
-            success=True,
-            message="Surveillance streaming démarrée",
-            data={"session_id": session_id}
-        )
-        
-    except Exception as e:
-        logger.error(f"Erreur start_stream: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
-
-
 @app.get("/reports/export/{session_id}")
 async def export_session(
     session_id: str,
@@ -2348,7 +2134,6 @@ async def export_session(
         return session.dict()
     else:
         return export_session_csv(session)
-
 
 def export_session_csv(session: MonitoringSession) -> StreamingResponse:
     """Génère un export CSV de la session"""
@@ -2372,7 +2157,6 @@ def export_session_csv(session: MonitoringSession) -> StreamingResponse:
             'Date': dt.strftime('%d/%m/%Y'),
             'Heure': dt.strftime('%H:%M:%S'),
             'Titre': detection.track,
-            # 'Durée de diffusion (sec)': round(detection.duration_played, 2),
             'Durée Totale Titre (sec)': round(total_duration, 2),
             'ID Détection': detection.id
         })
@@ -2403,10 +2187,6 @@ def export_session_csv(session: MonitoringSession) -> StreamingResponse:
         }
     )
 
-
-
-
-
 # ----------------- WEBSOCKET -----------------
 @app.websocket("/ws/monitoring")
 async def websocket_monitoring(websocket: WebSocket):
@@ -2419,4 +2199,3 @@ async def websocket_monitoring(websocket: WebSocket):
         logger.info("WebSocket déconnecté")
     except Exception as e:
         logger.error(f"WebSocket erreur: {e}")
-
