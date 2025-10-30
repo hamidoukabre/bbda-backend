@@ -3,7 +3,8 @@ services:
     name: bbda-backend
     env: python
     buildCommand: |
-      rm -f pyproject.toml poetry.lock 2>/dev/null || true
+      apt-get update
+      apt-get install -y portaudio19-dev python3-pyaudio
       pip install --upgrade pip
       pip install -r requirements.txt
     startCommand: "python main_fastapi.py"
